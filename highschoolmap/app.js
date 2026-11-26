@@ -15,9 +15,11 @@ const $ = (id) => document.getElementById(id);
 const map = L.map("map").setView([37.46, 127.48], 10);
 let regionBounds = L.latLngBounds([[37.26, 127.10], [37.66, 127.86]]);
 function fitRegion() { map.invalidateSize(); map.fitBounds(regionBounds, { padding: [10, 10] }); }
-let fittedOnce = false;
+// 사용자가 지도를 직접 움직이기 전까지는 창 크기가 바뀔 때마다 세 지역에 다시 맞춘다
+let userMoved = false;
+["mousedown", "wheel", "touchstart"].forEach((ev) => $("map").addEventListener(ev, () => (userMoved = true), { passive: true }));
 new ResizeObserver(() => {
-  if (!fittedOnce && $("map").clientHeight > 0) { fittedOnce = true; fitRegion(); }
+  if (!userMoved && $("map").clientHeight > 0) fitRegion();
 }).observe($("map"));
 
 if (cfg.VWORLD_KEY) {
@@ -47,6 +49,58 @@ async function loadBoundaries() {
   });
   regionBounds = layer.getBounds();
   fitRegion();
+}
+
+// ---------- 읍·면·동 (마우스 올리면 파랗게 떠오름, 클릭하면 인구·고등학교 수) ----------
+map.createPane("dongs").style.zIndex = 350; // 시군 경계·학교 점보다 아래
+const dongStyle = { color: "#868e96", weight: 1, opacity: 0.7, fillColor: "#fff", fillOpacity: 0.01, className: "dong-path" };
+const dongHover = { color: "#1c7ed6", weight: 2.5, opacity: 1, fillColor: "#339af0", fillOpacity: 0.45 };
+let dongLayer = null;
+
+function inRing(pt, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    if ((yi > pt[1]) !== (yj > pt[1]) && pt[0] < ((xj - xi) * (pt[1] - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+function inFeature(lng, lat, geom) {
+  const polys = geom.type === "Polygon" ? [geom.coordinates] : geom.coordinates;
+  return polys.some((p) => inRing([lng, lat], p[0]) && !p.slice(1).some((h) => inRing([lng, lat], h)));
+}
+const fmt = (n) => (n == null ? "-" : n.toLocaleString("ko-KR"));
+
+function dongPopup(f) {
+  const p = f.properties;
+  const hs = state.schools.filter((s) => s.region.name === p.sgg && inFeature(s.lng, s.lat, f.geometry));
+  return `<div class="dong-pop"><b>${p.sgg} ${p.dong}</b>
+    <div class="dp-row">인구 <b>${fmt(p.pop)}명</b> <span class="dp-sub">(${fmt(p.hh)}세대)</span></div>
+    <div class="dp-row">고등학교 <b>${hs.length}개</b></div>
+    ${hs.length ? "<div class=\"dp-sub\">" + hs.map((s) => s.name).join(", ") + "</div>" : ""}
+    <div class="dp-src">주민등록 인구 2026년 10월 · 행정안전부</div></div>`;
+}
+
+async function loadDongs() {
+  const fc = await (await fetch("dongs.geojson")).json();
+  dongLayer = L.geoJSON(fc, {
+    pane: "dongs",
+    style: dongStyle,
+    onEachFeature: (f, layer) => {
+      layer.on("mouseover", () => {
+        layer.setStyle(dongHover);
+        layer.bringToFront();
+        layer.getElement()?.classList.add("lift");
+      });
+      layer.on("mouseout", () => {
+        layer.setStyle(dongStyle);
+        layer.getElement()?.classList.remove("lift");
+      });
+      layer.on("click", (e) => {
+        L.popup({ className: "dong-popup" }).setLatLng(e.latlng).setContent(dongPopup(f)).openOn(map);
+      });
+    },
+  }).addTo(map);
 }
 
 // ---------- 학교 ----------
@@ -170,6 +224,7 @@ async function loadSchools() {
 
 // ---------- 시작 ----------
 buildFilters();
+loadDongs().catch((e) => console.error("읍면동 불러오기 실패", e));
 loadBoundaries().catch((e) => console.error("경계 불러오기 실패", e));
 loadSchools().catch((e) => {
   $("count").textContent = "학교 정보를 불러오지 못했습니다: " + e.message;

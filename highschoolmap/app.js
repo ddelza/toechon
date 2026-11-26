@@ -35,7 +35,7 @@ if (cfg.VWORLD_KEY) {
 
 // ---------- 행정경계 ----------
 async function loadBoundaries() {
-  const fc = await (await fetch("regions.geojson?v=20261126c")).json();
+  const fc = await (await fetch("regions.geojson?v=20261126d")).json();
   const layer = L.geoJSON(fc, {
     style: (f) => {
       const r = REGIONS.find((r) => r.name === f.properties.name);
@@ -82,7 +82,7 @@ function dongPopup(f) {
 }
 
 async function loadDongs() {
-  const fc = await (await fetch("dongs.geojson?v=20261126c")).json();
+  const fc = await (await fetch("dongs.geojson?v=20261126d")).json();
   dongLayer = L.geoJSON(fc, {
     pane: "dongs",
     style: dongStyle,

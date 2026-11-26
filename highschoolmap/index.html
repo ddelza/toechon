@@ -26,8 +26,9 @@
   .home-icon { color: #f59f00; font-size: 26px; line-height: 26px; text-align: center; text-shadow: 0 0 3px #000, 0 0 2px #000; }
   .home-label { background: #222; color: #fff; border: none; font-weight: 700; font-size: 13px; }
   .home-label::before { display: none; }
-  .dong-path { transform-box: fill-box; transform-origin: center; transition: transform .18s ease, filter .18s ease, fill-opacity .18s ease; cursor: pointer; }
-  .dong-path.lift { transform: scale(1.02); filter: drop-shadow(0 4px 6px rgba(25, 113, 194, .55)); }
+  /* 크기를 바꾸면 경계선과 어긋나므로, 모양은 그대로 두고 빛·그림자로만 떠오르게 함 */
+  .dong-path { transition: filter .2s ease, fill-opacity .2s ease, stroke-width .2s ease; cursor: pointer; }
+  .dong-path.lift { filter: drop-shadow(0 0 5px rgba(51, 154, 240, .95)) drop-shadow(0 4px 6px rgba(0, 50, 120, .45)); }
   .dong-pop { font-size: 13px; line-height: 1.5; min-width: 170px; }
   .dong-pop > b { font-size: 15px; }
   .dp-row { margin-top: 3px; }
@@ -73,7 +74,7 @@
 
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="config.js?v=20261126c"></script>
-<script src="app.js?v=20261126c"></script>
+<script src="config.js?v=20261126d"></script>
+<script src="app.js?v=20261126d"></script>
 </body>
 </html>

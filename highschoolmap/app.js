@@ -70,6 +70,24 @@ function regionOf(row) {
   return REGIONS.find((r) => addr.includes("경기도 " + r.name));
 }
 
+// ---------- 광수중학교 기준 거리 ----------
+const HOME = { name: "광수중학교", lat: 37.47304, lng: 127.3196 }; // 광주시 퇴촌면 도수길23번길 23
+function distKm(lat, lng) { // 직선거리(하버사인)
+  const R = 6371, rad = Math.PI / 180;
+  const dLat = (lat - HOME.lat) * rad, dLng = (lng - HOME.lng) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(HOME.lat * rad) * Math.cos(lat * rad) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+L.marker([HOME.lat, HOME.lng], {
+  icon: L.divIcon({ className: "home-icon", html: "★", iconSize: [26, 26], iconAnchor: [13, 13] }),
+  zIndexOffset: 1000,
+}).bindTooltip(HOME.name, { permanent: true, direction: "top", offset: [0, -12], className: "home-label" }).addTo(map);
+const lineLayer = L.layerGroup().addTo(map);
+function showLine(s) {
+  lineLayer.clearLayers();
+  L.polyline([[HOME.lat, HOME.lng], [s.lat, s.lng]], { color: "#222", weight: 2, dashArray: "6 6" }).addTo(lineLayer);
+}
+
 const markerLayer = L.layerGroup().addTo(map);
 const state = { schools: [], off: new Set(), q: "", labels: true };
 
@@ -86,14 +104,16 @@ function render() {
     const m = L.circleMarker([s.lat, s.lng], {
       radius: 7, color: "#fff", weight: 2, fillColor: s.region.color, fillOpacity: 1,
     }).addTo(markerLayer);
-    m.bindTooltip(s.name.replace(/고등학교$/, "고"), {
+    m.bindTooltip(`${s.name.replace(/고등학교$/, "고")} <span class="km">${s.km.toFixed(1)}km</span>`, {
       permanent: state.labels, direction: dup ? "left" : "right", offset: [dup ? -8 : 8, 0], className: "hs-label",
     });
+    m.on("popupopen", () => showLine(s));
+    m.on("popupclose", () => lineLayer.clearLayers());
     m.on("mouseover", () => { const el = m.getTooltip()?.getElement(); if (el) el.style.visibility = ""; });
-    m.bindPopup(`<b>${s.name}</b><br>${s.region.name} · ${s.found}<br>${s.addr}<br>☎ ${s.tel}`);
+    m.bindPopup(`<b>${s.name}</b><br>광수중에서 직선 <b>${s.km.toFixed(1)}km</b><br>${s.region.name} · ${s.found}<br>${s.addr}<br>☎ ${s.tel}`);
 
     const li = document.createElement("li");
-    li.innerHTML = `<span class="ldot" style="background:${s.region.color}"></span>${s.name}<small>${s.region.name} · ${s.found}</small>`;
+    li.innerHTML = `<span class="ldot" style="background:${s.region.color}"></span>${s.name}<span class="lkm">${s.km.toFixed(1)}km</span><small>${s.region.name} · ${s.found}</small>`;
     li.onclick = () => { map.setView([s.lat, s.lng], 15); m.openPopup(); };
     list.appendChild(li);
   }
@@ -143,7 +163,8 @@ async function loadSchools() {
       addr: row.REFINE_ROADNM_ADDR || row.REFINE_LOTNO_ADDR || "", tel: row.TELNO || "-",
       lat: +row.REFINE_WGS84_LAT, lng: +row.REFINE_WGS84_LOGT,
     }))
-    .sort((a, b) => REGIONS.indexOf(a.region) - REGIONS.indexOf(b.region) || a.name.localeCompare(b.name, "ko"));
+    .map((s) => ({ ...s, km: distKm(s.lat, s.lng) }))
+    .sort((a, b) => a.km - b.km); // 가까운 순
   render();
 }
 

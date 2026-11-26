@@ -1,7 +1,7 @@
 // 광주시·하남시·양평군 고등학교 지도
 // - 학교: 경기데이터드림 "경기도_고등학교 현황" API (서비스명 HgschlM)
 // - 배경지도: 브이월드 WMTS (키가 없으면 OpenStreetMap)
-// - 행정경계: regions.geojson (통계청 2013 시군구 경계에서 세 곳만 추출)
+// - 행정경계: regions.geojson (dongs.geojson의 읍면동을 시군별로 합친 것 — 두 경계가 정확히 겹침)
 
 const REGIONS = [
   { name: "광주시", color: "#d9480f" },
@@ -35,7 +35,7 @@ if (cfg.VWORLD_KEY) {
 
 // ---------- 행정경계 ----------
 async function loadBoundaries() {
-  const fc = await (await fetch("regions.geojson")).json();
+  const fc = await (await fetch("regions.geojson?v=20261126c")).json();
   const layer = L.geoJSON(fc, {
     style: (f) => {
       const r = REGIONS.find((r) => r.name === f.properties.name);
@@ -82,7 +82,7 @@ function dongPopup(f) {
 }
 
 async function loadDongs() {
-  const fc = await (await fetch("dongs.geojson")).json();
+  const fc = await (await fetch("dongs.geojson?v=20261126c")).json();
   dongLayer = L.geoJSON(fc, {
     pane: "dongs",
     style: dongStyle,
